@@ -1,29 +1,30 @@
 import { connectScratch } from "./scratch.js";
-import { db } from "./firebase.js";
 import { caesarDecode } from "./crypto.js";
 import { askGemini } from "./gemini.js";
+import { db } from "./firebase.js";
 
 const cloud = await connectScratch();
 let last = 0;
 
 cloud.on("set", async (name, value) => {
   if (name !== "req_flag" || value !== "1") return;
-  if (Date.now() - last < 1200) return; // レート制御
+  if (Date.now() - last < 1200) return;
   last = Date.now();
 
-  cloud.get("req_session", async session => {
-    cloud.get("req_data", async enc => {
-      const snap = await db.ref(`requests/${session}`).get();
-      if (snap.exists()) return;
+  const session = await cloud.get("req_session");
+  const enc = await cloud.get("req_data");
 
-      await db.ref(`requests/${session}`).set({ t: Date.now() });
+  const snap = await db.ref(`requests/${session}`).get();
+  if (snap.exists()) return;
 
-      const decoded = caesarDecode(String(enc), 3);
-      const answer = await askGemini(decoded);
+  await db.ref(`requests/${session}`).set({ t: Date.now() });
 
-      await db.ref(`responses/${session}`).set(answer);
-      cloud.set("result", answer.replace(/\D/g,"").slice(0,200)); // 数字のみ
-      cloud.set("req_flag", 2);
-    });
-  });
+  const decoded = caesarDecode(String(enc), 3);
+  const answer = await askGemini(decoded);
+
+  await db.ref(`responses/${session}`).set(answer);
+
+  // 数字のみ返す（Scratch制限）
+  cloud.set("result", answer.replace(/\D/g, "").slice(0, 200));
+  cloud.set("req_flag", 2);
 });
