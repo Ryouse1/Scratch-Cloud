@@ -1,11 +1,15 @@
-import admin from "firebase-admin";
-import fs from "fs";
+import scratchattach from "scratchattach";
 
-admin.initializeApp({
-  credential: admin.credential.cert(
-    JSON.parse(fs.readFileSync("serviceAccountKey.json"))
-  ),
-  databaseURL: process.env.FIREBASE_DB_URL
-});
+export async function connectScratch() {
+  const session = await scratchattach.login(
+    process.env.SCRATCH_USER,
+    process.env.SCRATCH_PASS
+  );
 
-export const db = admin.database();
+  const cloud = await session.cloud(
+    process.env.SCRATCH_PROJECT_ID
+  );
+
+  console.log("✅ Scratch logged in (scratchattach)");
+  return cloud;
+}
